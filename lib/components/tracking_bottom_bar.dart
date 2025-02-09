@@ -1,15 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:geocoding/geocoding.dart';
 
 class TrackingBottomBar extends StatelessWidget {
   final bool isTracking;
   final VoidCallback onToggleTracking;
   final double totalDistance;
+  final Placemark place;
 
   const TrackingBottomBar({
     super.key,
     required this.isTracking,
     required this.onToggleTracking,
     required this.totalDistance,
+    required this.place,
   });
 
   @override
@@ -40,12 +43,14 @@ class TrackingBottomBar extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Text(
-                      "Emplacement actuel",
+                    Text(
+                      "${place.locality ?? '- '}, ${place.country ?? '-'}", // ${place.street},
                       style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                     Text(
-                      "Distance: ${totalDistance.toStringAsFixed(2)} km - Temps: 10 min",
+                      "Distance traquée: ${totalDistance.toStringAsFixed(2)} km",
                       style: TextStyle(fontSize: 12, color: Colors.grey[700]),
                     ),
                   ],

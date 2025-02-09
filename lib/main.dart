@@ -1,6 +1,4 @@
-import 'package:animated_splash_screen/animated_splash_screen.dart';
 import 'package:flutter/material.dart';
-import 'package:lottie/lottie.dart';
 import 'package:flutter/services.dart';
 import 'package:user_tacking_app/location_tracker_screen.dart';
 import 'package:yandex_mapkit/yandex_mapkit.dart';
@@ -31,16 +29,16 @@ class MyApp extends StatelessWidget {
         primarySwatch: Colors.blue,
         useMaterial3: true,
       ),
-      // home: const LocationTrackerScreen(),
-      home: AnimatedSplashScreen(
-        splash: Center(
-          child: Lottie.asset('assets/Animation-1739066636266.json')
-        ),
-        nextScreen: const LocationTrackerScreen(),
-        splashIconSize: 300,
-        backgroundColor: Colors.white,
-        duration: 0,
-      )
+      home: const LocationTrackerScreen(),
+      // home: AnimatedSplashScreen(
+      //   splash: Center(
+      //     child: Lottie.asset('assets/Animation-1739066636266.json')
+      //   ),
+      //   nextScreen: const LocationTrackerScreen(),
+      //   splashIconSize: 300,
+      //   backgroundColor: Colors.white,
+      //   duration: 0,
+      // )
     );
   }
 }

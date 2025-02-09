@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:geocoding/geocoding.dart';
 import 'package:user_tacking_app/components/tracking_bottom_bar.dart';
 import 'package:yandex_mapkit/yandex_mapkit.dart';
 import 'dart:async';
@@ -14,10 +15,14 @@ class LocationTrackerScreen extends StatefulWidget {
 class _LocationTrackerScreenState extends State<LocationTrackerScreen> {
   bool isTracking = false;
   List<Point> trackPoints = [];
+  List<List<Point>> trackHistory = [];
+  List<MapObject<dynamic>> mapObjects = [];
   Point? currentPosition;
   YandexMapController? mapController;
   StreamSubscription<Position>? positionStream;
   double totalDistance = 0.0;
+  double trackTime = 0.0;
+  Placemark place = Placemark();
 
   @override
   void initState() {
@@ -31,6 +36,23 @@ class _LocationTrackerScreenState extends State<LocationTrackerScreen> {
     mapController?.dispose();
     super.dispose();
   }
+
+  Future<void> getAddressFromLatLng() async {
+  if (currentPosition != null) {
+    try {
+      List<Placemark> placemarks = await placemarkFromCoordinates(
+        currentPosition!.latitude,
+        currentPosition!.longitude,
+      );
+
+      setState(() {
+        place = placemarks[0];
+      });
+    } catch (e) {
+      print("Erreur lors de la récupération de l'adresse : $e");
+    }
+  }
+}
 
   Future<void> _requestLocationPermission() async {
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
@@ -70,6 +92,8 @@ class _LocationTrackerScreenState extends State<LocationTrackerScreen> {
           longitude: position.longitude,
         );
       });
+
+      await getAddressFromLatLng();
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error getting location: $e')),
@@ -90,6 +114,8 @@ class _LocationTrackerScreenState extends State<LocationTrackerScreen> {
   }
 
   void _startTracking() {
+    print("trackHistory length ${trackHistory.length}");
+    print("trackHistory ${trackHistory}");
     const LocationSettings locationSettings = LocationSettings(
       accuracy: LocationAccuracy.high,
       distanceFilter: 10,
@@ -105,7 +131,7 @@ class _LocationTrackerScreenState extends State<LocationTrackerScreen> {
         trackPoints.add(currentPosition!);
 
         // Calcul de la distance parcourue
-        if (trackPoints.length > 1) {
+        if (trackPoints.length > 1 && isTracking) {
           totalDistance += Geolocator.distanceBetween(
             trackPoints[trackPoints.length - 2].latitude,
             trackPoints[trackPoints.length - 2].longitude,
@@ -121,9 +147,13 @@ class _LocationTrackerScreenState extends State<LocationTrackerScreen> {
 
   void _stopTracking() {
     positionStream?.cancel();
+    trackHistory.add(trackPoints);
+    trackPoints = [];
+    print("trackHistory length ${trackHistory.length}");
+    print("trackHistory ${trackHistory}"); 
   }
 
-  void _updateMapObjects() {
+  void _updateMapObjects() async {
     if (mapController != null && currentPosition != null) {
       mapController!.moveCamera(
         CameraUpdate.newCameraPosition(
@@ -134,6 +164,79 @@ class _LocationTrackerScreenState extends State<LocationTrackerScreen> {
         ),
       );
     }
+
+    await getAddressFromLatLng();
+
+    setState(() {
+      mapObjects = [
+        PlacemarkMapObject(
+          mapId: const MapObjectId('current_location'),
+          point: currentPosition!,
+          opacity: 1.0,
+          icon: PlacemarkIcon.single(
+            PlacemarkIconStyle(
+              image: BitmapDescriptor.fromAssetImage('assets/Pin_current_location.png'),
+              scale: 3.0,
+            ),
+          ),
+        ),
+        if (trackPoints.length >= 2)
+          PolylineMapObject(
+            mapId: MapObjectId('track_${DateTime.now().millisecondsSinceEpoch}'), // ID unique
+            polyline: Polyline(points: List.from(trackPoints)), // Créer une nouvelle liste
+            strokeColor: Colors.deepPurple[700]!,
+            strokeWidth: 3,
+          ),
+          // Marqueur au début du trajet
+          if (trackPoints.isNotEmpty)
+            PlacemarkMapObject(
+              mapId: const MapObjectId('start_marker'),
+              point: trackPoints.first, // Première position du trajet
+              opacity: 1.0,
+              icon: PlacemarkIcon.single(
+                PlacemarkIconStyle(
+                  image: BitmapDescriptor.fromAssetImage('assets/start_marker.png'), // Remplacer par ton image
+                  scale: 0.25,
+                ),
+              ),
+            ),
+        for (var track in trackHistory) 
+          if (track.length >= 2) 
+            ...[
+              // Ajouter la polyline
+              PolylineMapObject(
+                mapId: MapObjectId('track_${trackHistory.indexOf(track)}'), // ID unique pour chaque itinéraire
+                polyline: Polyline(points: track),  // Utiliser l'itinéraire correspondant
+                strokeColor: Colors.grey,  // Couleur unique
+                strokeWidth: 3,
+              ),
+              // Ajouter le marqueur au début du trajet
+              PlacemarkMapObject(
+                mapId: MapObjectId('start_marker_${trackHistory.indexOf(track)}'),
+                point: track.first,  // Première position du trajet
+                opacity: 1.0,
+                icon: PlacemarkIcon.single(
+                  PlacemarkIconStyle(
+                    image: BitmapDescriptor.fromAssetImage('assets/start_marker.png'),
+                    scale: 0.25,
+                  ),
+                ),
+              ),
+              // Ajouter le marqueur à la fin du trajet
+              PlacemarkMapObject(
+                mapId: MapObjectId('end_marker_${trackHistory.indexOf(track)}'),
+                point: track.last,  // Dernière position du trajet
+                opacity: 1.0,
+                icon: PlacemarkIcon.single(
+                  PlacemarkIconStyle(
+                    image: BitmapDescriptor.fromAssetImage('assets/end_marker.png'),
+                    scale: 0.25,
+                  ),
+                ),
+              ),
+            ]
+      ];
+    });
   }
 
   @override
@@ -156,7 +259,7 @@ class _LocationTrackerScreenState extends State<LocationTrackerScreen> {
                       ),
                     );
                   },
-                  mapObjects: [
+                  mapObjects: mapObjects.length > 0 ? mapObjects : [
                     if (currentPosition != null)
                       PlacemarkMapObject(
                         mapId: const MapObjectId('current_location'),
@@ -178,6 +281,7 @@ class _LocationTrackerScreenState extends State<LocationTrackerScreen> {
                         strokeWidth: 3,
                       ),
                   ],
+                  // mapObjects: mapObjects,
                 ),
 
           Positioned(
@@ -204,7 +308,8 @@ class _LocationTrackerScreenState extends State<LocationTrackerScreen> {
       bottomNavigationBar: TrackingBottomBar(
         isTracking: isTracking,
         onToggleTracking: _toggleTracking,
-        totalDistance: totalDistance,
+        totalDistance: totalDistance / 1000,
+        place: place,
       ),
     );
   }
