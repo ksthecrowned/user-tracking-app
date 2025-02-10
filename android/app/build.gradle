@@ -55,6 +55,11 @@ android {
     buildTypes {
         release {
             signingConfig signingConfigs.debug
+
+            // Activation de la minification pour réduire la taille
+            shrinkResources true
+            minifyEnabled true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
 }
