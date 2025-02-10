@@ -1,10 +1,8 @@
-# user_tacking_app
-
-User Tracking APP
+# User Tracking APP
 
 ## Download APK
 
-- <a href="https://github.com/ksthecrowned/user-tracking-app/raw/main/APK_HERE/app-release.apk" download="user-tracking-app.apk">Download User Tracking APP - apk</a>
+- <a href="https://github.com/ksthecrowned/user-tracking-app/raw/main/APK_HERE/app-release.apk" download="user-tracking-app.apk">Download apk</a>
 
 ## Getting Started
 
