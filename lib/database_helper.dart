@@ -1,19 +1,15 @@
-// lib/database_helper.dart
-
 import 'dart:async';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
+import 'package:yandex_mapkit/yandex_mapkit.dart';
 
 class DatabaseHelper {
   static Database? _database;
 
   static const String tableName = "trackHistory";
   static const String columnId = "id";
-  static const String columnLatitude = "latitude";
-  static const String columnLongitude = "longitude";
-  static const String columnTimestamp = "timestamp";
+  static const String columnTrack = "track"; // Stockera la liste des points sous forme JSON
 
-  // Crée la base de données
   Future<Database> get database async {
     if (_database != null) {
       return _database!;
@@ -24,66 +20,83 @@ class DatabaseHelper {
   }
 
   Future<Database> _initDB() async {
-    // Récupérer le répertoire de l'application pour stocker la base de données
-    String path = join(await getDatabasesPath(), 'track_history.db');
-    
+    String path = join(await getDatabasesPath(), '_track_history.db');
+
     return await openDatabase(
       path,
       version: 1,
       onCreate: (db, version) async {
-        await db.execute(''' 
-          CREATE TABLE $tableName (
-            $columnId INTEGER PRIMARY KEY AUTOINCREMENT,
-            $columnLatitude REAL,
-            $columnLongitude REAL,
-            $columnTimestamp TEXT
+        // Table des itinéraires (trackHistory)
+        await db.execute('''
+          CREATE TABLE trackHistory (
+            id INTEGER PRIMARY KEY AUTOINCREMENT
+          )
+        ''');
+
+        // Table des points de suivi (trackPoints)
+        await db.execute('''
+          CREATE TABLE trackPoints (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            idTrack INTEGER,
+            latitude REAL,
+            longitude REAL,
+            FOREIGN KEY (idTrack) REFERENCES trackHistory(id) ON DELETE CASCADE
           )
         ''');
       },
     );
   }
 
-  // Insère un point de suivi dans la base de données
-  Future<void> insertTrackPoint(double latitude, double longitude, String timestamp) async {
-    final db = await database;
-    await db.insert(
-      tableName,
-      {
-        columnLatitude: latitude,
-        columnLongitude: longitude,
-        columnTimestamp: timestamp,
-      },
-      conflictAlgorithm: ConflictAlgorithm.replace,
-    );
-  }
 
-  // Insérer une liste de points de suivi
-  Future<void> insertTrackPoints(List<Map<String, dynamic>> trackPoints) async {
+  // Insère une liste de points en une seule ligne (après suppression des anciennes données)
+  Future<void> insertTrack(List<Point> trackPoints) async {
     final db = await database;
-    // Utiliser un batch pour insérer plusieurs points à la fois
-    Batch batch = db.batch();
-    for (var point in trackPoints) {
-      batch.insert(
-        tableName,
-        {
-          columnLatitude: point['latitude'],
-          columnLongitude: point['longitude'],
-          columnTimestamp: point['timestamp'],
-        },
-        conflictAlgorithm: ConflictAlgorithm.replace,
-      );
+
+    // Insérer un nouvel itinéraire vide et récupérer son ID
+    int idTrack = await db.insert('trackHistory', {}, nullColumnHack: 'id');
+
+    // Vérifier si on a bien un ID valide
+    if (idTrack > 0) {
+      Batch batch = db.batch();
+      for (var point in trackPoints) {
+        batch.insert('trackPoints', {
+          'idTrack': idTrack,
+          'latitude': point.latitude,
+          'longitude': point.longitude,
+        });
+      }
+      await batch.commit();
     }
-    await batch.commit();
   }
 
-  // Récupère tous les points de suivi
-  Future<List<Map<String, dynamic>>> getTrackHistory() async {
+
+  // Récupère toutes les traces sous forme de List<List<Point>>
+  Future<List<List<Point>>> getTrackHistory() async {
     final db = await database;
-    return await db.query(tableName);
+
+    // Récupérer tous les tracks
+    final List<Map<String, dynamic>> tracks = await db.query('trackHistory');
+
+    List<List<Point>> trackHistory = [];
+    for (var track in tracks) {
+      int idTrack = track['id'];
+
+      // Récupérer tous les points associés à ce track
+      final List<Map<String, dynamic>> points = await db.query(
+        'trackPoints',
+        where: 'idTrack = ?',
+        whereArgs: [idTrack],
+      );
+
+      List<Point> trackPoints = points.map((p) => Point(latitude: p['latitude'], longitude: p['longitude'])).toList();
+      trackHistory.add(trackPoints);
+    }
+
+    return trackHistory;
   }
 
-  // Supprimer tous les points de suivi
-  Future<void> deleteAllTrackPoints() async {
+  // Supprime toutes les traces
+  Future<void> deleteAllTracks() async {
     final db = await database;
     await db.delete(tableName);
   }

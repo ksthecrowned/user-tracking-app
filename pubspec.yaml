@@ -76,9 +76,7 @@ flutter:
   assets:
     - assets/Avatar.png
     - assets/Pin_current_location.png
-    - assets/Animation-1739066636266.json
-    - assets/start_marker.png
-    - assets/end_marker.png
+    - assets/location_pin.png
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
