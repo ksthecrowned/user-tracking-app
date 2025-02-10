@@ -8,7 +8,7 @@ class DatabaseHelper {
 
   static const String tableName = "trackHistory";
   static const String columnId = "id";
-  static const String columnTrack = "track"; // Stockera la liste des points sous forme JSON
+  static const String columnTrack = "track";
 
   Future<Database> get database async {
     if (_database != null) {
@@ -48,14 +48,10 @@ class DatabaseHelper {
   }
 
 
-  // Insère une liste de points en une seule ligne (après suppression des anciennes données)
   Future<void> insertTrack(List<Point> trackPoints) async {
     final db = await database;
 
-    // Insérer un nouvel itinéraire vide et récupérer son ID
     int idTrack = await db.insert('trackHistory', {}, nullColumnHack: 'id');
-
-    // Vérifier si on a bien un ID valide
     if (idTrack > 0) {
       Batch batch = db.batch();
       for (var point in trackPoints) {
@@ -70,11 +66,9 @@ class DatabaseHelper {
   }
 
 
-  // Récupère toutes les traces sous forme de List<List<Point>>
   Future<List<List<Point>>> getTrackHistory() async {
     final db = await database;
 
-    // Récupérer tous les tracks
     final List<Map<String, dynamic>> tracks = await db.query('trackHistory');
 
     List<List<Point>> trackHistory = [];
@@ -95,7 +89,6 @@ class DatabaseHelper {
     return trackHistory;
   }
 
-  // Supprime toutes les traces
   Future<void> deleteAllTracks() async {
     final db = await database;
     await db.delete(tableName);
