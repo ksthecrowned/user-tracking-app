@@ -47,6 +47,7 @@ class _LocationTrackerScreenState extends State<LocationTrackerScreen> {
   Future<void> getAddressFromLatLng() async {
     if (currentPosition != null) {
       try {
+        await setLocaleIdentifier("fr");
         List<Placemark> placemarks = await placemarkFromCoordinates(
           currentPosition!.latitude,
           currentPosition!.longitude,
@@ -144,7 +145,7 @@ class _LocationTrackerScreenState extends State<LocationTrackerScreen> {
             trackPoints[trackPoints.length - 2].longitude,
             currentPosition!.latitude,
             currentPosition!.longitude,
-          );
+          ) / 1000;
         }
 
         _updateMapObjects();
@@ -154,7 +155,7 @@ class _LocationTrackerScreenState extends State<LocationTrackerScreen> {
 
   void _stopTracking() async {
     positionStream?.cancel();
-    if(trackPoints.length > 0) {
+    if(trackPoints.length > 1) {
       await DatabaseHelper().insertTrack(trackPoints); 
     }
     trackPoints = []; 
